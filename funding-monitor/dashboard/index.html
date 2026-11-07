@@ -44,15 +44,16 @@
 
   <section id="checklist" aria-label="檢查表">
     <p class="sx-verdict bad" data-verdict="red" hidden>檢查表翻紅 → 減 1/3</p>
-    <p class="sx-verdict ok" data-verdict="green" hidden>三格全綠（陣型由你自己判斷）→ 續抱</p>
+    <p class="sx-verdict ok" data-verdict="green" hidden>四格全綠 → 續抱</p>
     <p class="sx-verdict" data-verdict="unknown" hidden>部分資料取不到，無法判定全綠</p>
     <span data-draw="verdict" data-source="latest"></span>
     <div class="sx-checks" style="margin-top: var(--cds-gap-sm)">
       <div class="sx-check" data-check="c1"><span class="sx-dot"></span><span class="sx-check-name">費率為正</span><span class="sx-check-state" data-draw="c1" data-source="latest" data-field="c1" data-row="0">—</span></div>
       <div class="sx-check" data-check="c2"><span class="sx-dot"></span><span class="sx-check-name">OI 無驟減 15%</span><span class="sx-check-state" data-draw="c2" data-source="latest" data-field="c2" data-row="0">—</span></div>
       <div class="sx-check" data-check="c3"><span class="sx-dot"></span><span class="sx-check-name">SOXS 非連續 2 期為正</span><span class="sx-check-state" data-draw="c3" data-source="latest" data-field="c3" data-row="0">—</span></div>
-      <div class="sx-check"><span class="sx-dot"></span><span class="sx-check-name">陣型</span><span class="sx-check-state">由你自己判斷</span></div>
+      <div class="sx-check" data-check="c4"><span class="sx-dot"></span><span class="sx-check-name">陣型（費半 SOXX）</span><span class="sx-check-state" data-draw="c4" data-source="latest" data-field="c4" data-row="0">—</span></div>
     </div>
+    <p class="sx-note" style="margin-top: var(--cds-gap-sm)">陣型看日 K 5／20／60 日均線：收盤 &gt; MA5 &gt; MA20 &gt; MA60 為多頭排列，收盤跌破 MA20（月線）算紅，其餘為整理。費半 SOXX：<b data-draw="fSoxx" data-source="latest" data-field="f_soxx" data-row="0">—</b>　那斯達克：<b data-draw="fIxic" data-source="latest" data-field="f_ixic" data-row="0">—</b></p>
   </section>
 
   <section class="sx-tiles" id="figures" aria-label="本次數值">
@@ -156,8 +157,11 @@
   text('r1', 'latest', 'r1', (v) => P(v, 4));
   text('r2', 'latest', 'r2', (v) => P(v, 4));
   text('r3', 'latest', 'r3', (v) => P(v, 4));
+  const FZ = (v) => ({ green: '多頭排列', yellow: '整理', red: '跌破月線' })[v] || '取不到';
+  text('fSoxx', 'latest', 'f_soxx', FZ);
+  text('fIxic', 'latest', 'f_ixic', FZ);
 
-  ['c1', 'c2', 'c3'].forEach((k) => dash.draw(k, (el) => {
+  ['c1', 'c2', 'c3', 'c4'].forEach((k) => dash.draw(k, (el) => {
     const r = row('latest'); const v = r ? r[k] : null;
     el.textContent = !r ? '—' : v === true ? '綠' : v === false ? '紅' : '取不到';
     document.querySelectorAll(`[data-check="${k}"]`).forEach((box) => {
@@ -168,7 +172,7 @@
 
   dash.draw('verdict', () => {
     const r = row('latest');
-    const state = !r ? '' : ['c1', 'c2', 'c3'].some((k) => r[k] === false) ? 'red' : ['c1', 'c2', 'c3'].some((k) => r[k] == null) ? 'unknown' : 'green';
+    const state = !r ? '' : ['c1', 'c2', 'c3', 'c4'].some((k) => r[k] === false) ? 'red' : ['c1', 'c2', 'c3', 'c4'].some((k) => r[k] == null) ? 'unknown' : 'green';
     document.querySelectorAll('[data-verdict]').forEach((p) => { p.hidden = p.dataset.verdict !== state; });
   });
 </script>

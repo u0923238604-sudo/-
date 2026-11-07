@@ -3,7 +3,7 @@
 import json, os
 HERE = os.path.dirname(os.path.abspath(__file__))
 H, L = os.path.join(HERE, "history.json"), os.path.join(HERE, "last_run.json")
-NAMES = {"c1": "費率為正", "c2": "OI 無驟減 15%", "c3": "SOXS 連續 2 期為正"}
+NAMES = {"c1": "費率為正", "c2": "OI 無驟減 15%", "c3": "SOXS 連續 2 期為正", "c4": "陣型（費半）跌破月線"}
 run = json.load(open(L))
 try:
     rows = json.load(open(H))
@@ -15,7 +15,7 @@ row = {"ts": run["ts"], "funding": run["funding"], "funding_ann": run["funding_a
        "markPx": run["markPx"], "premium": run["premium"],
        "soxlx": run["soxlx"], "soxlx_ann": run["soxlx_ann"],
        "soxsx": run["soxsx"], "soxsx_ann": run["soxsx_ann"], "soxsx_prev": run.get("soxsx_prev"),
-       "c1": run["c1"], "c2": run["c2"], "c3": run["c3"], "red": run["red"]}
+       "c1": run["c1"], "c2": run["c2"], "c3": run["c3"], "c4": run.get("c4"), "f_soxx": run.get("f_soxx"), "f_ixic": run.get("f_ixic"), "red": run["red"]}
 rec = run.get("recent") or []
 for i, v in enumerate(rec[-3:]):
     row[f"r{i+1}"] = v

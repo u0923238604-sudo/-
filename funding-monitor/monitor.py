@@ -103,7 +103,11 @@ def main():
     c2 = None if cur["oi"] is None else (True if oi_chg is None else oi_chg > -0.15)
     # 連續 2 期為正才算紅
     c3 = None if cur["soxsx"] is None or cur["soxsx_prev"] is None else not (cur["soxsx"] > 0 and cur["soxsx_prev"] > 0)
-    checks = [("費率為正", c1), ("OI 無驟減 15%", c2), ("SOXS 費率非連續 2 期為正", c3)]
+    fm = safe(lambda: json.load(open(os.path.join(HERE, "formation.json")))) or {}
+    fs, fi = fm.get("SOXX.US"), fm.get(".IXIC.US")
+    c4 = None if not fs else fs["state"] != "red"
+    zh = {"green": "多頭排列", "yellow": "整理", "red": "跌破月線"}
+    checks = [("費率為正", c1), ("OI 無驟減 15%", c2), ("SOXS 費率非連續 2 期為正", c3), ("陣型（費半 SOXX）", c4)]
     red = any(v is False for _, v in checks)
     unknown = any(v is None for _, v in checks)
 
@@ -113,13 +117,14 @@ def main():
     out += [f"| {a} | {b} | {c} |" for a, b, c in rows]
     out += ["", "| 檢查項目 | 狀態 |", "|---|---|"]
     out += [f"| {'**'+n+'**' if v is False else n} | {'**🔴**' if v is False else chk(v)} |" for n, v in checks]
-    out += ["| 陣型 | （由你自己填） |", ""]
+    fd = lambda f: "取不到" if not f else f"{zh[f['state']]}（{f['date']} 收 {f['close']:,.2f}／MA5 {f['ma5']:,.2f}／MA20 {f['ma20']:,.2f}／MA60 {f['ma60']:,.2f}）"
+    out += ["", f"陣型・費半 SOXX：{fd(fs)}", f"陣型・那斯達克：{fd(fi)}", ""]
     if red:
         out.append("**⚠️ 檢查表翻紅 → 減 1/3**")
     elif unknown:
         out.append("部分資料取不到，無法判定全綠。")
     else:
-        out.append("三格全綠（陣型待你自填）→ **續抱**")
+        out.append("四格全綠 → **續抱**")
     if prev.get("oi") is None:
         out.append("_首次執行或無上次 OI，變化率無法計算。_")
 
@@ -128,7 +133,8 @@ def main():
     print(f"<!-- US_SESSION={int(us)} RED={int(red)} -->")
     print("\n".join(out))
 
-    run = dict(cur, c1=c1, c2=c2, c3=c3, red=red)
+    run = dict(cur, c1=c1, c2=c2, c3=c3, c4=c4, red=red,
+               f_soxx=fs and fs["state"], f_ixic=fi and fi["state"])
     json.dump(run, open(os.path.join(HERE, "last_run.json"), "w"), ensure_ascii=False)
 
     # 只用實際取到的值更新 state，取不到的欄位保留上次值供下次比較，但報表本次一律寫「取不到」
