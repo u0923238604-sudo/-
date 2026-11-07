@@ -2,3 +2,5 @@ state.json
 __pycache__/
 last_run.json
 history.json
+dashboard/ds.json
+dashboard/page.json
