@@ -7,7 +7,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 STATE = os.path.join(HERE, "state.json")
 TPE = timezone(timedelta(hours=8))
 HL = "https://api.hyperliquid.xyz/info"
-PX = "https://api.pionex.com/api/v1/market/fundingRates?symbol={}&limit=1"
+PX = "https://api.pionex.com/api/v1/market/fundingRates?symbol={}&limit=2"
 COIN = "xyz:SOXL"
 
 
@@ -39,8 +39,9 @@ def hl_hist():
 
 
 def px(sym):
-    d = req(PX.format(sym))["data"]["rates"][0]
-    return {"rate": float(d["fundingRate"]), "time": d["fundingTime"]}
+    r = req(PX.format(sym))["data"]["rates"]
+    return {"rate": float(r[0]["fundingRate"]), "time": r[0]["fundingTime"],
+            "prev": float(r[1]["fundingRate"]) if len(r) > 1 else None}
 
 
 def pct(x, d=4):
@@ -65,6 +66,7 @@ def main():
         "soxlx_ann": soxl and soxl["rate"] * 3 * 365,
         "soxsx": soxs and soxs["rate"],
         "soxsx_ann": soxs and soxs["rate"] * 3 * 365,
+        "soxsx_prev": soxs and soxs["prev"],
     }
     oi_chg = (cur["oi"] / prev["oi"] - 1) if cur["oi"] is not None and prev.get("oi") else None
     cur["oi_chg"] = oi_chg
@@ -91,6 +93,7 @@ def main():
         ("Pionex SOXSX (8h / 年化)",
          "取不到" if cur["soxsx"] is None else f"{pct(cur['soxsx'])} / {pct(cur['soxsx_ann'],2)}",
          p("soxsx", lambda v: f"{pct(v)} / {pct(v*3*365,2)}")),
+        ("Pionex SOXSX 前一期 (8h)", pct(cur["soxsx_prev"]), p("soxsx_prev", pct)),
     ]
 
     def chk(ok):  # None = 取不到
@@ -98,8 +101,9 @@ def main():
 
     c1 = None if cur["funding"] is None else cur["funding"] > 0
     c2 = None if cur["oi"] is None else (True if oi_chg is None else oi_chg > -0.15)
-    c3 = None if cur["soxsx"] is None else cur["soxsx"] < 0
-    checks = [("費率為正", c1), ("OI 無驟減 15%", c2), ("SOXS 費率為負", c3)]
+    # 連續 2 期為正才算紅
+    c3 = None if cur["soxsx"] is None or cur["soxsx_prev"] is None else not (cur["soxsx"] > 0 and cur["soxsx_prev"] > 0)
+    checks = [("費率為正", c1), ("OI 無驟減 15%", c2), ("SOXS 費率非連續 2 期為正", c3)]
     red = any(v is False for _, v in checks)
     unknown = any(v is None for _, v in checks)
 
