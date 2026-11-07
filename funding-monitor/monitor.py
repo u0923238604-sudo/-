@@ -124,6 +124,9 @@ def main():
     print(f"<!-- US_SESSION={int(us)} RED={int(red)} -->")
     print("\n".join(out))
 
+    run = dict(cur, c1=c1, c2=c2, c3=c3, red=red)
+    json.dump(run, open(os.path.join(HERE, "last_run.json"), "w"), ensure_ascii=False)
+
     # 只用實際取到的值更新 state，取不到的欄位保留上次值供下次比較，但報表本次一律寫「取不到」
     new = dict(prev)
     new.update({k: v for k, v in cur.items() if v is not None})
