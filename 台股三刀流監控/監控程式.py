@@ -30,7 +30,7 @@ NAMES = ["跌破三刀流", "站上三刀流", "MACD柱縮短1/4", "MACD柱翻�
 # ---------------- 設定 ----------------
 def load_cfg():
     c = configparser.ConfigParser(inline_comment_prefixes=(";",))
-    c.read(CFG_PATH, encoding="utf-8")
+    c.read(CFG_PATH, encoding="utf-8-sig")   # 相容記事本存檔的 BOM
     m, d, p = c["監控"], c["桌面通知"], c["手機通知"]
     yes = lambda v: str(v).strip() in ("是", "1", "true", "True", "yes")
     nums = lambda v: [int(x) for x in v.split(",")]
@@ -47,7 +47,7 @@ def load_cfg():
     )
     if cfg["mode"] == "ntfy" and not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", cfg["topic"]):
         cfg["topic"] = "twii-" + secrets.token_hex(6)       # 自動產生頻道並寫回設定檔
-        txt = open(CFG_PATH, encoding="utf-8").read()
+        txt = open(CFG_PATH, encoding="utf-8-sig").read()
         txt = re.sub(r"(?m)^ntfy頻道\s*=.*$", "ntfy頻道 = " + cfg["topic"], txt)
         open(CFG_PATH, "w", encoding="utf-8").write(txt)
         print(f"★ 已自動產生 ntfy 頻道：{cfg['topic']}（請在手機 ntfy App 訂閱這個名稱）")
@@ -66,6 +66,9 @@ def fetch_60m(symbol, rng="6mo"):
     df = pd.DataFrame({k: q[k] for k in ("open", "high", "low", "close")},
                       index=pd.to_datetime(res["timestamp"], unit="s", utc=True).tz_convert("Asia/Taipei"))
     df = df.dropna(subset=["close"])
+    # 只留 09:00~13:00 整點開始的 60分K（排除 Yahoo 偶爾附帶的非整點即時報價）
+    df = df[(df.index.minute == 0) & (df.index.hour >= 9) & (df.index.hour <= 13)]
+    df = df[~df.index.duplicated(keep="last")]
     return df[[bar_done(t) for t in df.index]]
 
 
