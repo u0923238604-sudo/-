@@ -1,0 +1,241 @@
+<meta name="dash-one-writer">
+<style>
+  .sx { display: grid; gap: var(--cds-gap-lg); font-family: var(--font-anthropic-sans); }
+  .sx-head h1 { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); margin: 0; text-wrap: balance; }
+  .sx-head p { margin: var(--cds-gap-xs) 0 0; color: var(--color-fg-muted); }
+  .sx-verdict { font-size: var(--cds-font-size-heading); font-weight: var(--cds-font-weight-medium); margin: 0; }
+  .sx-verdict.bad { color: var(--color-bad); }
+  .sx-verdict.ok { color: var(--color-ok); }
+  .sx-checks { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr)); gap: var(--cds-gap-sm); }
+  .sx-check { display: flex; align-items: center; gap: var(--cds-gap-sm); padding: var(--cds-pad-sm) var(--cds-pad-md); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); background: var(--color-panel); }
+  .sx-dot { width: .75rem; height: .75rem; border-radius: 50%; flex: none; background: var(--cds-chart-muted); }
+  .sx-check.is-ok .sx-dot { background: var(--color-ok); }
+  .sx-check.is-bad .sx-dot { background: var(--color-bad); }
+  .sx-check.is-bad .sx-check-name { color: var(--color-bad); font-weight: 700; }
+  .sx-check-state { margin-left: auto; color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); }
+  .sx-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); gap: var(--cds-gap-md); }
+  .sx-tile, .sx-card { background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-lg); min-width: 0; }
+  .sx-label { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); letter-spacing: .02em; }
+  .sx-big { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); font-variant-numeric: tabular-nums; margin: var(--cds-gap-xs) 0; }
+  .sx-sub { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); font-variant-numeric: tabular-nums; }
+  .sx-big.neg { color: var(--color-bad); }
+  .sx-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); gap: var(--cds-gap-md); }
+  .sx-card h2 { font-size: var(--cds-font-size-heading); font-weight: var(--cds-font-weight-medium); margin: 0; }
+  .sx-card .sx-note { margin: var(--cds-gap-xs) 0 var(--cds-gap-md); font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+  .sx-chart { position: relative; min-height: 220px; }
+  .sx-tip { position: absolute; pointer-events: none; background: var(--cds-surface-popover); border: 1px solid var(--cds-border); border-radius: var(--cds-radius); box-shadow: var(--cds-shadow-popover); padding: var(--cds-pad-xs) var(--cds-pad-sm); font-size: var(--cds-font-size-caption); white-space: nowrap; }
+  .sx-tip .t { color: var(--cds-text-secondary); }
+  .sx-tablebox { max-height: 26rem; overflow: auto; }
+  .sx-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: var(--cds-font-size-caption); }
+  .sx-table th { position: sticky; top: 0; background: var(--color-panel); text-align: right; font-weight: var(--cds-font-weight-medium); color: var(--color-fg-muted); padding: var(--cds-pad-xs) var(--cds-pad-sm); border-bottom: 1px solid var(--color-border-line); }
+  .sx-table td { text-align: right; padding: var(--cds-pad-xs) var(--cds-pad-sm); border-bottom: 1px solid var(--color-border-line); white-space: nowrap; }
+  .sx-table th:first-child, .sx-table td:first-child { text-align: left; }
+  .sx-table td.bad { color: var(--color-bad); font-weight: 700; }
+  .sx-foot { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+  [data-dash-source-state=empty] { color: transparent; }
+  [data-dash-source-state=refreshing] { opacity: .5; transition: opacity var(--cds-dur-slow); }
+</style>
+
+<div class="sx" lang="zh-TW">
+  <header class="sx-head" id="summary">
+    <h1>SOXL 資金費率看板</h1>
+    <p>xyz:SOXL（Hyperliquid）與 Pionex SOXLX／SOXSX，每個整點過 3 分更新。最後更新：<span data-draw="ts" data-source="latest" data-field="ts" data-row="0">—</span></p>
+  </header>
+
+  <section id="checklist" aria-label="檢查表">
+    <p class="sx-verdict bad" data-verdict="red" hidden>檢查表翻紅 → 減 1/3</p>
+    <p class="sx-verdict ok" data-verdict="green" hidden>四格全綠 → 續抱</p>
+    <p class="sx-verdict" data-verdict="unknown" hidden>部分資料取不到，無法判定全綠</p>
+    <span data-draw="verdict" data-source="latest"></span>
+    <div class="sx-checks" style="margin-top: var(--cds-gap-sm)">
+      <div class="sx-check" data-check="c1"><span class="sx-dot"></span><span class="sx-check-name">費率為正</span><span class="sx-check-state" data-draw="c1" data-source="latest" data-field="c1" data-row="0">—</span></div>
+      <div class="sx-check" data-check="c2"><span class="sx-dot"></span><span class="sx-check-name">OI 無驟減 15%</span><span class="sx-check-state" data-draw="c2" data-source="latest" data-field="c2" data-row="0">—</span></div>
+      <div class="sx-check" data-check="c3"><span class="sx-dot"></span><span class="sx-check-name">SOXS 非連續 2 期為正</span><span class="sx-check-state" data-draw="c3" data-source="latest" data-field="c3" data-row="0">—</span></div>
+      <div class="sx-check" data-check="c4"><span class="sx-dot"></span><span class="sx-check-name">陣型（費半 SOXX）</span><span class="sx-check-state" data-draw="c4" data-source="latest" data-field="c4" data-row="0">—</span></div>
+    </div>
+    <p class="sx-note" style="margin-top: var(--cds-gap-sm)">陣型看日 K 5／20／60 日均線：收盤 &gt; MA5 &gt; MA20 &gt; MA60 為多頭排列，收盤跌破 MA20（月線）算紅，其餘為整理。費半 SOXX：<b data-draw="fSoxx" data-source="latest" data-field="f_soxx" data-row="0">—</b>　那斯達克：<b data-draw="fIxic" data-source="latest" data-field="f_ixic" data-row="0">—</b></p>
+  </section>
+
+  <section class="sx-tiles" id="figures" aria-label="本次數值">
+    <div class="sx-tile">
+      <div class="sx-label">預估費率（年化，1h ×24×365）</div>
+      <div class="sx-big" data-draw="ann" data-source="latest" data-field="funding_ann" data-row="0">—</div>
+      <div class="sx-sub">1h：<span data-draw="fund" data-source="latest" data-field="funding" data-row="0">—</span>　上次：<span data-draw="annPrev" data-source="previous" data-field="funding_ann" data-row="0">—</span></div>
+    </div>
+    <div class="sx-tile">
+      <div class="sx-label">未平倉量 OI</div>
+      <div class="sx-big" data-draw="oi" data-source="latest" data-field="oi" data-row="0">—</div>
+      <div class="sx-sub">變化：<span data-draw="oiChg" data-source="latest" data-field="oi_chg" data-row="0">—</span>　上次：<span data-draw="oiPrev" data-source="previous" data-field="oi" data-row="0">—</span></div>
+    </div>
+    <div class="sx-tile">
+      <div class="sx-label">溢價 premium</div>
+      <div class="sx-big" data-draw="prem" data-source="latest" data-field="premium" data-row="0">—</div>
+      <div class="sx-sub">標記價 <span data-draw="px" data-source="latest" data-field="markPx" data-row="0">—</span>　上次溢價：<span data-draw="premPrev" data-source="previous" data-field="premium" data-row="0">—</span></div>
+    </div>
+    <div class="sx-tile">
+      <div class="sx-label">Pionex SOXLX（年化，8h ×3×365）</div>
+      <div class="sx-big" data-draw="lx" data-source="latest" data-field="soxlx_ann" data-row="0">—</div>
+      <div class="sx-sub">8h：<span data-draw="lx8" data-source="latest" data-field="soxlx" data-row="0">—</span>　上次：<span data-draw="lxPrev" data-source="previous" data-field="soxlx_ann" data-row="0">—</span></div>
+    </div>
+    <div class="sx-tile">
+      <div class="sx-label">Pionex SOXSX（年化，8h ×3×365）</div>
+      <div class="sx-big" data-draw="sx" data-source="latest" data-field="soxsx_ann" data-row="0">—</div>
+      <div class="sx-sub">8h：<span data-draw="sx8" data-source="latest" data-field="soxsx" data-row="0">—</span>　上次：<span data-draw="sxPrev" data-source="previous" data-field="soxsx_ann" data-row="0">—</span></div>
+    </div>
+    <div class="sx-tile">
+      <div class="sx-label">最近 3 筆實收（舊→新）</div>
+      <div class="sx-sub" style="margin-top: var(--cds-gap-sm); font-size: var(--cds-font-size-body)"><span data-draw="r1" data-source="latest" data-field="r1" data-row="0">—</span> ／ <span data-draw="r2" data-source="latest" data-field="r2" data-row="0">—</span> ／ <span data-draw="r3" data-source="latest" data-field="r3" data-row="0">—</span></div>
+    </div>
+  </section>
+
+  <section class="sx-grid" id="trends" aria-label="走勢">
+    <div class="sx-card" id="chart-funding">
+      <h2>預估費率（年化）走勢</h2>
+      <p class="sx-note">每小時一點，虛線是 0；低於 0 代表空方付給多方。</p>
+      <div class="sx-chart dash-skeleton" data-draw="chartFunding" data-source="history"></div>
+    </div>
+    <div class="sx-card" id="chart-oi">
+      <h2>未平倉量 OI 走勢</h2>
+      <p class="sx-note">單次驟減超過 15% 檢查表會翻紅。</p>
+      <div class="sx-chart dash-skeleton" data-draw="chartOi" data-source="history"></div>
+    </div>
+  </section>
+
+  <section class="sx-card" id="log">
+    <h2>每小時紀錄</h2>
+    <p class="sx-note">新的在上面；紅字是當次翻紅的項目。</p>
+    <div class="sx-tablebox">
+      <table class="sx-table" data-source="history" data-row-key="ts">
+        <thead><tr>
+          <th data-field="ts">時間（台北）</th>
+          <th data-field="funding_ann">預估年化</th>
+          <th data-field="oi">OI</th>
+          <th data-field="oi_chg">OI 變化</th>
+          <th data-field="premium">溢價</th>
+          <th data-field="soxlx">SOXLX 8h</th>
+          <th data-field="soxsx">SOXSX 8h</th>
+        </tr></thead>
+        <tbody data-draw="table"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <p class="sx-foot">只報數字與檢查表，不提供買賣建議。取不到的數字顯示為空白，不會用上次的值代替。</p>
+</div>
+
+<script>
+  dash.calc('latest', { title: '本次數值', description: '紀錄中最新的一筆。', inputs: ['history'], fn: (history) => history.slice(-1) });
+  dash.calc('previous', { title: '上次數值', description: '紀錄中倒數第二筆。', inputs: ['history'], fn: (history) => history.length > 1 ? history.slice(-2, -1) : [] });
+
+  const P = (v, d) => (v == null || isNaN(v)) ? '—' : (v * 100).toFixed(d) + '%';
+  const N = (v) => (v == null || isNaN(v)) ? '—' : d3.format(',.2f')(v);
+  const T = (ts) => ts ? ts.slice(5, 16).replace('T', ' ') : '—';
+  const row = (id) => { const g = dash.data(id); return g.status === 'ok' && g.data.length ? g.data[0] : null; };
+  window.sxFmt = { P, N, T, row };
+
+  const text = (name, id, field, fmt, signColor) => dash.draw(name, (el) => {
+    const r = row(id); const v = r ? r[field] : null;
+    el.textContent = r ? fmt(v) : '—';
+    if (signColor) el.classList.toggle('neg', v != null && v < 0);
+  });
+  text('ts', 'latest', 'ts', T);
+  text('ann', 'latest', 'funding_ann', (v) => P(v, 2), true);
+  text('fund', 'latest', 'funding', (v) => P(v, 4));
+  text('annPrev', 'previous', 'funding_ann', (v) => P(v, 2));
+  text('oi', 'latest', 'oi', N);
+  text('oiChg', 'latest', 'oi_chg', (v) => v == null ? '—' : (v >= 0 ? '+' : '') + (v * 100).toFixed(2) + '%');
+  text('oiPrev', 'previous', 'oi', N);
+  text('prem', 'latest', 'premium', (v) => P(v, 4), true);
+  text('px', 'latest', 'markPx', N);
+  text('premPrev', 'previous', 'premium', (v) => P(v, 4));
+  text('lx', 'latest', 'soxlx_ann', (v) => P(v, 2), true);
+  text('lx8', 'latest', 'soxlx', (v) => P(v, 4));
+  text('lxPrev', 'previous', 'soxlx_ann', (v) => P(v, 2));
+  text('sx', 'latest', 'soxsx_ann', (v) => P(v, 2));
+  text('sx8', 'latest', 'soxsx', (v) => P(v, 4));
+  text('sxPrev', 'previous', 'soxsx_ann', (v) => P(v, 2));
+  text('r1', 'latest', 'r1', (v) => P(v, 4));
+  text('r2', 'latest', 'r2', (v) => P(v, 4));
+  text('r3', 'latest', 'r3', (v) => P(v, 4));
+  const FZ = (v) => ({ green: '多頭排列', yellow: '整理', red: '跌破月線' })[v] || '取不到';
+  text('fSoxx', 'latest', 'f_soxx', FZ);
+  text('fIxic', 'latest', 'f_ixic', FZ);
+
+  ['c1', 'c2', 'c3', 'c4'].forEach((k) => dash.draw(k, (el) => {
+    const r = row('latest'); const v = r ? r[k] : null;
+    el.textContent = !r ? '—' : v === true ? '綠' : v === false ? '紅' : '取不到';
+    document.querySelectorAll(`[data-check="${k}"]`).forEach((box) => {
+      box.classList.toggle('is-ok', v === true);
+      box.classList.toggle('is-bad', v === false);
+    });
+  }));
+
+  dash.draw('verdict', () => {
+    const r = row('latest');
+    const state = !r ? '' : ['c1', 'c2', 'c3', 'c4'].some((k) => r[k] === false) ? 'red' : ['c1', 'c2', 'c3', 'c4'].some((k) => r[k] == null) ? 'unknown' : 'green';
+    document.querySelectorAll('[data-verdict]').forEach((p) => { p.hidden = p.dataset.verdict !== state; });
+  });
+</script>
+
+<script>
+  const { P, N, T } = window.sxFmt;
+  const lineChart = (el, field, fmt, zero) => {
+    const g = dash.data('history');
+    el.replaceChildren();
+    if (g.status !== 'ok') { el.classList.toggle('dash-skeleton', g.status === 'loading'); return; }
+    el.classList.remove('dash-skeleton');
+    const pts = g.data.filter((d) => d[field] != null).map((d) => ({ t: new Date(d.ts), v: d[field], ts: d.ts }));
+    const W = Math.max(el.clientWidth, 280), H = 220;
+    const svg = d3.select(el).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`);
+    let ext = d3.extent(pts, (d) => d.v);
+    if (zero) ext = [Math.min(0, ext[0] ?? 0), Math.max(0, ext[1] ?? 0)];
+    if (ext[0] === ext[1]) ext = [ext[0] - Math.abs(ext[0] || 1) * 0.05, ext[1] + Math.abs(ext[1] || 1) * 0.05];
+    const y = d3.scaleLinear(ext, [H - 24, 10]).nice(4);
+    const probe = svg.append('text').attr('font-size', 11).text(fmt(y.domain()[0]).length > fmt(y.domain()[1]).length ? fmt(y.domain()[0]) : fmt(y.domain()[1]));
+    const ml = probe.node().getComputedTextLength() + 10; probe.remove();
+    const tx = d3.extent(pts, (d) => d.t);
+    if (tx[0] && +tx[0] === +tx[1]) { tx[0] = new Date(+tx[0] - 1800e3); tx[1] = new Date(+tx[1] + 1800e3); }
+    const x = d3.scaleUtc(tx[0] ? tx : [new Date(), new Date()], [ml, W - 12]);
+    svg.append('g').selectAll('line').data(y.ticks(4)).join('line').attr('x1', ml).attr('x2', W - 12).attr('y1', y).attr('y2', y).attr('stroke', 'var(--cds-chart-grid)');
+    svg.append('g').selectAll('text').data(y.ticks(4)).join('text').attr('x', ml - 6).attr('y', (d) => y(d) + 4).attr('text-anchor', 'end').attr('font-size', 11).attr('fill', 'var(--color-fg-muted)').text(fmt);
+    const xt = x.ticks(Math.max(2, Math.floor(W / 110)));
+    svg.append('g').selectAll('text').data(xt).join('text').attr('x', x).attr('y', H - 6).attr('text-anchor', 'middle').attr('font-size', 11).attr('fill', 'var(--color-fg-muted)').text(d3.timeFormat('%m/%d %H:%M'));
+    if (zero) svg.append('line').attr('x1', ml).attr('x2', W - 12).attr('y1', y(0)).attr('y2', y(0)).attr('stroke', 'var(--cds-chart-reference)').attr('stroke-dasharray', '4 3');
+    svg.append('path').datum(pts).attr('fill', 'none').attr('stroke', dash.colors[0]).attr('stroke-width', 2).attr('stroke-linejoin', 'round').attr('stroke-linecap', 'round').attr('d', d3.line((d) => x(d.t), (d) => y(d.v)));
+    svg.append('g').selectAll('circle').data(pts.slice(-1)).join('circle').attr('cx', (d) => x(d.t)).attr('cy', (d) => y(d.v)).attr('r', 3.5).attr('fill', dash.colors[0]);
+    const tip = d3.select(el).append('div').attr('class', 'sx-tip').style('display', 'none');
+    const dot = svg.append('circle').attr('r', 4).attr('fill', dash.colors[0]).style('display', 'none');
+    svg.append('rect').attr('x', ml).attr('y', 0).attr('width', W - 12 - ml).attr('height', H).attr('fill', 'transparent')
+      .on('pointermove', (ev) => {
+        if (!pts.length) return;
+        const [mx] = d3.pointer(ev);
+        const i = d3.minIndex(pts, (d) => Math.abs(x(d.t) - mx)); const d = pts[i];
+        dot.style('display', null).attr('cx', x(d.t)).attr('cy', y(d.v));
+        tip.style('display', null).replaceChildren();
+        tip.append('div').attr('class', 't').text(T(d.ts));
+        tip.append('div').text(fmt(d.v));
+        const bw = tip.node().offsetWidth; const px = x(d.t) / W * el.clientWidth;
+        tip.style('left', Math.min(Math.max(0, px - bw / 2), el.clientWidth - bw) + 'px').style('top', '0px');
+      })
+      .on('pointerleave', () => { dot.style('display', 'none'); tip.style('display', 'none'); });
+  };
+  dash.draw('chartFunding', (el) => lineChart(el, 'funding_ann', (v) => P(v, 0), true));
+  dash.draw('chartOi', (el) => lineChart(el, 'oi', (v) => d3.format(',.0f')(v), false));
+
+  dash.draw('table', (tb) => {
+    const g = dash.data('history');
+    tb.replaceChildren();
+    if (g.status !== 'ok') return;
+    g.data.slice().reverse().forEach((d) => {
+      const tr = document.createElement('tr');
+      tr.dataset.key = d.ts;
+      const cells = [
+        [d.ts, null], [P(d.funding_ann, 2), d.c1 === false], [N(d.oi), null],
+        [d.oi_chg == null ? '—' : (d.oi_chg >= 0 ? '+' : '') + (d.oi_chg * 100).toFixed(2) + '%', d.c2 === false],
+        [P(d.premium, 4), null], [P(d.soxlx, 4), null], [P(d.soxsx, 4), d.c3 === false],
+      ];
+      cells.forEach(([t, bad], i) => { const td = document.createElement('td'); td.textContent = i === 0 ? T(t) : t; if (bad) td.className = 'bad'; tr.append(td); });
+      tb.append(tr);
+    });
+  });
+</script>
