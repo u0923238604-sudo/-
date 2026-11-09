@@ -68,9 +68,9 @@ def fetch_60m(symbol, rng="6mo"):
     df = pd.DataFrame({k: q[k] for k in ("open", "high", "low", "close")},
                       index=pd.to_datetime(res["timestamp"], unit="s", utc=True).tz_convert("Asia/Taipei"))
     df = df.dropna(subset=["close"])
-    # 只留 09:00~13:00 整點開始的 60分K（排除 Yahoo 偶爾附帶的非整點即時報價）
-    df = df[(df.index.minute == 0) & (df.index.hour >= 9) & (df.index.hour <= 13)]
-    df = df[~df.index.duplicated(keep="last")]
+    # Yahoo 會另送 13:30 收盤那筆（含收盤集合競價），併入 13:00 那根，讓收盤價 = 官方收盤
+    df = df[(df.index.hour >= 9) & ((df.index.hour < 13) | (df.index.hour == 13) & (df.index.minute <= 30))]
+    df = df.groupby(df.index.floor("h")).agg({"open": "first", "high": "max", "low": "min", "close": "last"})
     return df[[bar_done(t) for t in df.index]]
 
 
@@ -121,17 +121,22 @@ def describe(row, cfg, t):
 def notify(cfg, title, msg, urgent=True):
     if cfg["desk"]:
         desktop(title, msg, cfg["beep"], sticky=urgent)
-    try:
-        if cfg["mode"] == "ntfy":
-            requests.post(cfg["server"], json={"topic": cfg["topic"], "title": title, "message": msg,
-                                               "priority": 5 if urgent else 3,
-                                               "tags": ["rotating_light" if urgent else "chart_with_upwards_trend"]},
-                          timeout=15).raise_for_status()
-        elif cfg["mode"] == "telegram" and cfg["tg_token"]:
-            requests.post(f"https://api.telegram.org/bot{cfg['tg_token']}/sendMessage",
-                          data={"chat_id": cfg["tg_chat"], "text": f"{title}\n{msg}"}, timeout=15).raise_for_status()
-    except Exception as e:
-        print(f"[手機通知失敗] {e}")
+    for wait in (5, 15, 30, None):                         # 失敗（如 429 限流、網路斷線）自動重試 3 次
+        try:
+            if cfg["mode"] == "ntfy":
+                requests.post(cfg["server"], json={"topic": cfg["topic"], "title": title, "message": msg,
+                                                   "priority": 5 if urgent else 3,
+                                                   "tags": ["rotating_light" if urgent else "chart_with_upwards_trend"]},
+                              timeout=15).raise_for_status()
+            elif cfg["mode"] == "telegram" and cfg["tg_token"]:
+                requests.post(f"https://api.telegram.org/bot{cfg['tg_token']}/sendMessage",
+                              data={"chat_id": cfg["tg_chat"], "text": f"{title}\n{msg}"}, timeout=15).raise_for_status()
+            return True
+        except Exception as e:
+            print(f"[手機通知失敗] {e}" + (f"，{wait} 秒後重試" if wait else "，已放棄"))
+            if wait:
+                time.sleep(wait)
+    return False
 
 
 def desktop(title, msg, beep, sticky=False):
