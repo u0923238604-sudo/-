@@ -173,6 +173,15 @@ def write_log(t, row, level):
                    + ["V" if row[n] else "" for n in NAMES] + [int(row["成立數"]), level])
 
 
+def logged(t):
+    """這根 K 棒是否已寫過警示紀錄（避免重開程式重複通知）"""
+    try:
+        with open(LOG_PATH, encoding="utf-8-sig") as f:
+            return any(line.startswith(f"{t:%Y-%m-%d %H:%M},") for line in f)
+    except OSError:
+        return False
+
+
 # ---------------- 主流程 ----------------
 def alert_level(hit, cfg):
     if hit >= cfg["strong"]:
@@ -203,7 +212,8 @@ def run():
                     hit = int(row["成立數"])
                     info = describe(row, cfg, t)
                     print(f"[{now:%H:%M:%S}] {info}\n")
-                    if last is not None:                     # 啟動當下只顯示，不重複通知舊 K 棒
+                    # 新 K 棒照常通知；剛啟動時，若最新一根是「今天」且還沒通知過，就補發一次
+                    if last is not None or (t.date() == now.date() and not logged(t)):
                         level = alert_level(hit, cfg)
                         if level == "強烈警示":
                             notify(cfg, f"🔴 強烈警示｜{cfg['name']}（{hit}/4 成立）", info, urgent=True)
