@@ -10,6 +10,7 @@
 兩段式通知（沒成立就不打擾）：
   成立 >= 強烈警示門檻（預設 3）→ 紅色強烈警示：桌面跳出視窗（按確定才關）＋提示音＋手機最高優先
   成立 >= 一般提醒門檻（預設 2）→ 黃色一般提醒：桌面右下角通知＋手機一般優先
+每小時狀態：每根 60分K 收完，若沒達提醒等級，也推播一則狀態（有提醒的那小時只發提醒，不重複）
 每日收盤摘要：13:00 那根收完（約 13:31）推播當日摘要，不論有沒有訊號，也順便確認程式還在運作
 
 用法：
@@ -43,6 +44,7 @@ def load_cfg():
         macd=nums(m.get("MACD", "12,26,9")), shrink=float(m.get("縮短比例", "0.25")),
         strong=int(m.get("強烈警示門檻", "3")), normal=int(m.get("一般提醒門檻", "2")),
         every=max(1, int(m.get("檢查間隔分鐘", "3"))), summary=yes(m.get("收盤摘要", "是")),
+        hourly=yes(m.get("每小時狀態", "是")),
         desk=yes(d.get("啟用", "是")), beep=yes(d.get("提示音", "是")),
         mode=p.get("方式", "ntfy").strip().lower(), topic=p.get("ntfy頻道", "").strip(),
         server=p.get("ntfy伺服器", "https://ntfy.sh").strip().rstrip("/"),
@@ -244,6 +246,14 @@ def run():
                             notify(cfg, f"🔴 強烈警示｜{cfg['name']}（{hit}/4 成立）", info, urgent=True)
                         elif level == "一般提醒":
                             notify(cfg, f"🟡 一般提醒｜{cfg['name']}（{hit}/4 成立）", info, urgent=False)
+                        elif cfg["hourly"]:                     # 沒達提醒 → 每小時狀態
+                            prev = df[df.index.date < t.date()]["close"]
+                            chg = ""
+                            if len(prev):
+                                d = row["close"] - prev.iloc[-1]
+                                chg = f"\n較昨收 {d:+.2f}（{d / prev.iloc[-1]:+.2%}）"
+                            notify(cfg, f"📊 每小時狀態｜{cfg['name']} {t:%H:%M}（{hit}/4 成立）",
+                                   info + chg, urgent=False)
                         write_log(t, row, level)
                         if cfg["summary"] and t.hour == 13:     # 當天最後一根收完 → 收盤摘要
                             info = summary(df, cfg, t.date())
