@@ -10,6 +10,7 @@
 兩段式通知（沒成立就不打擾）：
   成立 >= 強烈警示門檻（預設 3）→ 紅色強烈警示：桌面跳出視窗（按確定才關）＋提示音＋手機最高優先
   成立 >= 一般提醒門檻（預設 2）→ 黃色一般提醒：桌面右下角通知＋手機一般優先
+每日收盤摘要：13:00 那根收完（約 13:31）推播當日摘要，不論有沒有訊號，也順便確認程式還在運作
 
 用法：
   python 監控程式.py            盤中自動監控（一鍵啟動.bat 就是執行這行）
@@ -41,7 +42,7 @@ def load_cfg():
         ma=nums(m.get("均線", "20,60,240")), ma_all=m.get("均線判斷", "全部").strip() != "任一",
         macd=nums(m.get("MACD", "12,26,9")), shrink=float(m.get("縮短比例", "0.25")),
         strong=int(m.get("強烈警示門檻", "3")), normal=int(m.get("一般提醒門檻", "2")),
-        every=max(1, int(m.get("檢查間隔分鐘", "3"))),
+        every=max(1, int(m.get("檢查間隔分鐘", "3"))), summary=yes(m.get("收盤摘要", "是")),
         desk=yes(d.get("啟用", "是")), beep=yes(d.get("提示音", "是")),
         mode=p.get("方式", "ntfy").strip().lower(), topic=p.get("ntfy頻道", "").strip(),
         server=p.get("ntfy伺服器", "https://ntfy.sh").strip().rstrip("/"),
@@ -115,6 +116,30 @@ def describe(row, cfg, t):
     return (f"{cfg['name']} {t:%m/%d %H:%M} 60分K 收 {row['close']:.2f}\n{ma}\n"
             f"MACD柱 {row['柱']:+.2f}（{color(row['柱'])}）\n"
             f"成立 {len(hit)}/4：{'、'.join(hit) if hit else '無'}")
+
+
+def summary(df, cfg, day):
+    """當日收盤摘要：漲跌、每根 60分K 成立數、提醒次數、收盤位置"""
+    today, prev = df[df.index.date == day], df[df.index.date < day]
+    last = today.iloc[-1]
+    lines = [f"{cfg['name']} {day:%m/%d} 收盤 {last['close']:.2f}"]
+    if len(prev):
+        diff = last["close"] - prev["close"].iloc[-1]
+        lines[0] += f"（{diff:+.2f}，{diff / prev['close'].iloc[-1]:+.2%}）"
+    lv = [alert_level(int(r["成立數"]), cfg) for _, r in today.iterrows()]
+    mark = {"強烈警示": " 🔴", "一般提醒": " 🟡", "": ""}
+    lines.append("今日 60分K：")
+    lines += [f"  {t:%H:%M}  收 {r['close']:.0f}  成立 {int(r['成立數'])}/4{mark[v]}"
+              for (t, r), v in zip(today.iterrows(), lv)]
+    lines.append(f"今日提醒：強烈 {lv.count('強烈警示')} 次、一般 {lv.count('一般提醒')} 次")
+    lines.append("  ".join(f"MA{n}={last[f'MA{n}']:.0f}" for n in cfg["ma"]))
+    lines.append(f"MACD柱 {last['柱']:+.2f}（{color(last['柱'])}）")
+    above = [f"MA{n}" for n in cfg["ma"] if last["close"] > last[f"MA{n}"]]
+    below = [f"MA{n}" for n in cfg["ma"] if last["close"] <= last[f"MA{n}"]]
+    pos = ("站上全部均線" if not below else "跌破全部均線" if not above
+           else f"在 {'、'.join(above)} 之上，{'、'.join(below)} 之下")
+    lines.append(f"收盤位置：{pos}")
+    return "\n".join(lines)
 
 
 # ---------------- 通知 ----------------
@@ -220,6 +245,10 @@ def run():
                         elif level == "一般提醒":
                             notify(cfg, f"🟡 一般提醒｜{cfg['name']}（{hit}/4 成立）", info, urgent=False)
                         write_log(t, row, level)
+                        if cfg["summary"] and t.hour == 13:     # 當天最後一根收完 → 收盤摘要
+                            info = summary(df, cfg, t.date())
+                            print(f"[收盤摘要]\n{info}\n")
+                            notify(cfg, f"📋 收盤摘要｜{cfg['name']} {t:%m/%d}", info, urgent=False)
                     last = t
         except Exception as e:
             print(f"[{now:%H:%M:%S}] 取資料失敗，稍後重試：{e}")
